@@ -1,0 +1,79 @@
+#!/bin/python3
+
+from pathlib import Path
+import argparse
+import logging
+
+logging.basicConfig(level=logging.ERROR, format='[%(levelname)s] [%(module)s] %(message)s')
+
+
+help_str = """
+This script is intended to replace cp and rsync on the cluster, in cases where you wish to inherit ACLs.
+
+Use :
+> pycopy.py source_file target_file
+> pycopy.py file1 file2 dir1 target/dir
+
+If several source files/dirs are passed, the target is assumed to be a directory that will be created.
+"""
+
+parser = argparse.ArgumentParser(description=help_str, formatter_class=argparse.RawTextHelpFormatter)
+parser.add_argument("source", nargs="+", help="One or several files/directories")
+parser.add_argument("dest", nargs=1, help="Destination file or directory")
+args = parser.parse_args()
+
+source = [Path(s) for s in args.source]
+dest = Path(args.dest[0])
+
+# checks
+err = False
+for s in source :
+    if not s.exists() :
+        logging.error(f"{s} : no such file or directory")
+        err = True
+
+if not dest.parent.exists() :
+    logging.error(f"Cannot write in '{dest.parent}', no such file or directory")
+    err = True
+
+if len(source) > 1 :
+    if not dest.is_dir() :
+        logging.error(f"Target '{dest}' is not a directory")
+        err = True
+
+if err :
+    exit(1)
+
+
+def dumb_copy(s:Path, d:Path) :
+    """
+    Copies the content of source file to destination file
+    """
+    with open(s, "rb") as fp1, open(d, "wb+") as fp2 :
+        fp2.write(fp1.read())
+
+def recursive_copy(s:Path, d:Path) :
+    """
+    Copies the content of a file or folder into another file or folder
+    """
+
+    if s.is_dir() :
+        if not d.exists() :
+            d.mkdir()
+
+        for subelmt in s.iterdir() :
+            recursive_copy(subelmt, d / subelmt.name)
+    else :
+        dumb_copy(s, d)
+
+
+if len(source) == 1 :
+    source = source[0]
+    if source.is_file() and dest.is_dir() :
+        recursive_copy(source, dest / source.name)
+    else :
+        recursive_copy(source, dest)
+
+else :
+    for elmt in source :
+        recursive_copy(elmt, dest / elmt.name)

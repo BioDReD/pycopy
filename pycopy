@@ -13,8 +13,6 @@ This script is intended to replace cp and rsync on the cluster, in cases where y
 Use :
 > pycopy.py source_file target_file
 > pycopy.py file1 file2 dir1 target/dir
-
-If several source files/dirs are passed, the target is assumed to be a directory that will be created.
 """
 
 parser = argparse.ArgumentParser(description=help_str, formatter_class=argparse.RawTextHelpFormatter)

@@ -4,45 +4,6 @@ from pathlib import Path
 import argparse
 import logging
 
-logging.basicConfig(level=logging.ERROR, format='[%(levelname)s] [%(module)s] %(message)s')
-
-
-help_str = """
-This script is intended to replace cp and rsync on the cluster, in cases where you wish to inherit ACLs.
-
-Use :
-> pycopy.py source_file target_file
-> pycopy.py file1 file2 dir1 target/dir
-"""
-
-parser = argparse.ArgumentParser(description=help_str, formatter_class=argparse.RawTextHelpFormatter)
-parser.add_argument("source", nargs="+", help="One or several files/directories")
-parser.add_argument("dest", nargs=1, help="Destination file or directory")
-args = parser.parse_args()
-
-source = [Path(s) for s in args.source]
-dest = Path(args.dest[0])
-
-# checks
-err = False
-for s in source :
-    if not s.exists() :
-        logging.error(f"{s} : no such file or directory")
-        err = True
-
-if not dest.parent.exists() :
-    logging.error(f"Cannot write in '{dest.parent}', no such file or directory")
-    err = True
-
-if len(source) > 1 :
-    if not dest.is_dir() :
-        logging.error(f"Target '{dest}' is not a directory")
-        err = True
-
-if err :
-    exit(1)
-
-
 def dumb_copy(s:Path, d:Path) :
     """
     Copies the content of source file to destination file
@@ -65,13 +26,53 @@ def recursive_copy(s:Path, d:Path) :
         dumb_copy(s, d)
 
 
-if len(source) == 1 :
-    source = source[0]
-    if source.is_file() and dest.is_dir() :
-        recursive_copy(source, dest / source.name)
-    else :
-        recursive_copy(source, dest)
+if __name__ == "__main__" : 
 
-else :
-    for elmt in source :
-        recursive_copy(elmt, dest / elmt.name)
+    logging.basicConfig(level=logging.ERROR, format='[%(levelname)s] [%(module)s] %(message)s')
+    help_str = """
+    This script is intended to replace cp and rsync on the cluster, in cases where you wish to inherit ACLs.
+
+    Use :
+    > pycopy.py source_file target_file
+    > pycopy.py file1 file2 dir1 target/dir
+    """
+
+    parser = argparse.ArgumentParser(description=help_str, formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("source", nargs="+", help="One or several files/directories")
+    parser.add_argument("dest", nargs=1, help="Destination file or directory")
+    args = parser.parse_args()
+
+    source = [Path(s) for s in args.source]
+    dest = Path(args.dest[0])
+
+    # checks
+    err = False
+    for s in source :
+        if not s.exists() :
+            logging.error(f"{s} : no such file or directory")
+            err = True
+
+    if not dest.parent.exists() :
+        logging.error(f"Cannot write in '{dest.parent}', no such file or directory")
+        err = True
+
+    if len(source) > 1 :
+        if not dest.is_dir() :
+            logging.error(f"Target '{dest}' is not a directory")
+            err = True
+
+    if err :
+        exit(1)
+
+
+
+    if len(source) == 1 :
+        source = source[0]
+        if source.is_file() and dest.is_dir() :
+            recursive_copy(source, dest / source.name)
+        else :
+            recursive_copy(source, dest)
+
+    else :
+        for elmt in source :
+            recursive_copy(elmt, dest / elmt.name)

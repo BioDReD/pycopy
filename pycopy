@@ -4,31 +4,40 @@ from pathlib import Path
 import argparse
 import logging
 
-def dumb_copy(s:Path, d:Path) :
+def dumb_copy(s:Path, d:Path, args) :
     """
     Copies the content of source file to destination file
     """
+    if args.verbose : 
+        logging.info(f"Copying '{s}' to '{d}'")
+
     with open(s, "rb") as fp1, open(d, "wb+") as fp2 :
         fp2.write(fp1.read())
 
-def recursive_copy(s:Path, d:Path) :
+def recursive_copy(s:Path, d:Path, args) :
     """
     Copies the content of a file or folder into another file or folder
     """
+    if s.name in args.exclude : 
+        logging.info(f"Skipped '{s}' (--exclude)")
+        return
 
     if s.is_dir() :
         if not d.exists() :
+            if args.verbose : 
+                logging.info(f"Creating dir '{d}'")
+            
             d.mkdir()
 
         for subelmt in s.iterdir() :
-            recursive_copy(subelmt, d / subelmt.name)
+            recursive_copy(subelmt, d / subelmt.name, args)
     else :
-        dumb_copy(s, d)
+        dumb_copy(s, d, args)
 
 
 if __name__ == "__main__" : 
 
-    logging.basicConfig(level=logging.ERROR, format='[%(levelname)s] [%(module)s] %(message)s')
+    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] [%(module)s] %(message)s')
     help_str = """
     This script is intended to replace cp and rsync on the cluster, in cases where you wish to inherit ACLs.
 
@@ -40,6 +49,8 @@ if __name__ == "__main__" :
     parser = argparse.ArgumentParser(description=help_str, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("source", nargs="+", help="One or several files/directories")
     parser.add_argument("dest", nargs=1, help="Destination file or directory")
+    parser.add_argument("--exclude", nargs="*", default=[])
+    parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
     source = [Path(s) for s in args.source]
@@ -69,10 +80,10 @@ if __name__ == "__main__" :
     if len(source) == 1 :
         source = source[0]
         if source.is_file() and dest.is_dir() :
-            recursive_copy(source, dest / source.name)
+            recursive_copy(source, dest / source.name, args)
         else :
-            recursive_copy(source, dest)
+            recursive_copy(source, dest, args)
 
     else :
         for elmt in source :
-            recursive_copy(elmt, dest / elmt.name)
+            recursive_copy(elmt, dest / elmt.name, args)

@@ -15,11 +15,30 @@ def dumb_copy(s:Path, d:Path, args) :
         for line in fp1 :
             fp2.write(line)
 
-def recursive_copy(s:Path, d:Path, args) :
+def fuzzy_isin(f:Path, l:list, whole_path, fuzzy) : 
+    """
+    Given a path and a list of strings (to include or exclude), returns True if any of the strings is in the path (name or whole path). 
+    
+    - `whole_path` : bool, defines if we match the full path or only the file/dir name
+    - `fuzzy` : bool, defines if we actually want to be fuzzy
+    """
+    if not fuzzy : 
+        return f.name in l
+
+    search_str = f.name if not whole_path else str(f)
+    for pattern in l :
+        if pattern in search_str : 
+            return True
+    return False
+
+
+
+def recursive_copy(s:Path, d:Path, args:argparse.Namespace) :
     """
     Copies the content of a file or folder into another file or folder
     """
-    if s.name in args.exclude : 
+
+    if fuzzy_isin(s, args.exclude, args.whole_path, args.fuzzy) and not fuzzy_isin(s, args.include, args.whole_path, args.fuzzy) :
         logging.info(f"Skipped '{s}' (--exclude)")
         return
 
@@ -33,6 +52,10 @@ def recursive_copy(s:Path, d:Path, args) :
         for subelmt in s.iterdir() :
             recursive_copy(subelmt, d / subelmt.name, args)
     else :
+        if args.include and not fuzzy_isin(s, args.include, args.whole_path, args.fuzzy) :
+            logging.info(f"Skipped '{s}' (not in --include)")
+            return
+
         dumb_copy(s, d, args)
 
 
@@ -50,7 +73,10 @@ if __name__ == "__main__" :
     parser = argparse.ArgumentParser(description=help_str, formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("source", nargs="+", help="One or several files/directories")
     parser.add_argument("dest", nargs=1, help="Destination file or directory")
-    parser.add_argument("--exclude", nargs="*", default=[])
+    parser.add_argument("--exclude", nargs="*", default=[], help="File/dir names to skip")
+    parser.add_argument("--include", nargs="*", default=[], help="Copy only **files** where name is given")
+    parser.add_argument("-f", "--fuzzy", action="store_true", help="Allows to match file and dir names partially in --exclude and --include")
+    parser.add_argument("-w", "--whole-path", action="store_true", help="For --include and --exclude combined with --fuzzy : matches the entirety of the given path instead of just the name")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
 
